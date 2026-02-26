@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reconnaissance d'Image — Hugging Face</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --fond: #f5f0e8;
+      --surface: #ffffff;
+      --bordure: #d8d0c0;
+      --accent: #ff6b2b;
+      --accent2: #2b7fff;
+      --texte: #1a1510;
+      --attenué: #8a7f72;
+      --succès: #2d9e6b;
+      --erreur: #cc2222;
+    }
+
+    body {
+      background: var(--fond);
+      color: var(--texte);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 80px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8bfaf' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .conteneur {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    header {
+      display: block;
+      margin-bottom: 44px;
+      animation: glisserBas 0.7s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .etiquette {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: white;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 12px;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .etiquette::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      animation: clignote 1.5s ease infinite;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.4rem, 7vw, 4rem);
+      font-weight: 400;
+      line-height: 1.05;
+      color: var(--texte);
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .sous-titre {
+      margin-top: 14px;
+      color: var(--attenué);
+      font-size: 14px;
+      font-family: 'DM Mono', monospace;
+      line-height: 1.6;
+    }
+
+    .section-token {
+      background: var(--surface);
+      border: 1.5px solid var(--bordure);
+      padding: 22px 26px;
+      margin-bottom: 20px;
+      animation: glisserHaut 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both;
+      position: relative;
+    }
+
+    .section-token::before {
+      content: '01';
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--bordure);
+    }
+
+    .section-token label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--attenué);
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .champ-token {
+      display: flex;
+      gap: 10px;
+    }
+
+    .champ-token input {
+      flex: 1;
+      background: var(--fond);
+      border: 1.5px solid var(--bordure);
+      color: var(--texte);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .champ-token input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-afficher {
+      background: var(--fond);
+      border: 1.5px solid var(--bordure);
+      color: var(--attenué);
+      font-size: 18px;
+      padding: 0 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-afficher:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .indice-token {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--attenué);
+      font-family: 'DM Mono', monospace;
+      line-height: 1.5;
+    }
+
+    .indice-token a {
+      color: var(--accent2);
+      text-decoration: none;
+      border-bottom: 1px solid currentColor;
+    }
+
+    .section-modele {
+      background: var(--surface);
+      border: 1.5px solid var(--bordure);
+      padding: 22px 26px;
+      margin-bottom: 20px;
+      animation: glisserHaut 0.6s 0.15s cubic-bezier(0.16,1,0.3,1) both;
+      position: relative;
+    }
+
+    .section-modele::before {
+      content: '02';
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--bordure);
+    }
+
+    .section-modele label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--attenué);
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .grille-modeles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .carte-modele {
+      border: 1.5px solid var(--bordure);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--fond);
+    }
+
+    .carte-modele:hover { border-color: var(--accent); }
+
+    .carte-modele.actif {
+      border-color: var(--accent);
+      background: #fff5f0;
+    }
+
+    .carte-modele input[type="radio"] { display: none; }
+
+    .nom-modele {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .desc-modele {
+      font-size: 12px;
+      color: var(--attenué);
+      line-height: 1.4;
+    }
+
+    .zone-depot {
+      border: 2px dashed var(--bordure);
+      padding: 56px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      background: var(--surface);
+      animation: glisserHaut 0.6s 0.2s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .zone-depot::before {
+      content: '03';
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--bordure);
+    }
+
+    .zone-depot:hover, .zone-depot.survol {
+      border-color: var(--accent);
+      background: #fff8f5;
+    }
+
+    .zone-depot input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .icone-depot {
+      font-size: 44px;
+      margin-bottom: 14px;
+      display: block;
+      transition: transform 0.3s;
+    }
+
+    .zone-depot:hover .icone-depot { transform: translateY(-6px); }
+
+    .texte-depot {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .sous-texte-depot {
+      font-size: 12px;
+      color: var(--attenué);
+      font-family: 'DM Mono', monospace;
+    }
+
+    #section-apercu {
+      display: none;
+      margin-top: 20px;
+      animation: glisserHaut 0.4s ease both;
+    }
+
+    .cadre-apercu {
+      position: relative;
+      border: 1.5px solid var(--bordure);
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    #img-apercu {
+      width: 100%;
+      max-height: 380px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .etiquette-apercu {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: var(--texte);
+      color: var(--fond);
+      padding: 4px 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+    }
+
+    #btn-analyser {
+      width: 100%;
+      margin-top: 14px;
+      background: var(--texte);
+      color: var(--fond);
+      border: none;
+      padding: 18px;
+      font-family: 'DM Serif Display', serif;
+      font-size: 18px;
+      font-style: italic;
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
+      letter-spacing: 0.5px;
+    }
+
+    #btn-analyser:hover {
+      background: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255,107,43,0.3);
+    }
+
+    #btn-analyser:disabled {
+      background: var(--bordure);
+      color: var(--attenué);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .roue {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--fond);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: tourner 0.7s linear infinite;
+      margin: 0 auto;
+    }
+
+    #btn-analyser.chargement .texte-btn { display: none; }
+    #btn-analyser.chargement .roue { display: block; }
+
+    #section-resultats {
+      display: none;
+      margin-top: 32px;
+      animation: glisserHaut 0.5s ease both;
+    }
+
+    .entete-resultats {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .titre-resultats {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+    }
+
+    .nb-resultats {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--attenué);
+    }
+
+    .separateur {
+      height: 2px;
+      background: var(--texte);
+      margin-bottom: 20px;
+    }
+
+    .carte-label {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--bordure);
+      animation: apparaitre 0.4s ease both;
+    }
+
+    .rang-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--bordure);
+      min-width: 24px;
+    }
+
+    .info-label { flex: 1; }
+
+    .nom-label {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 7px;
+      line-height: 1.2;
+    }
+
+    .piste-barre {
+      height: 5px;
+      background: var(--fond);
+      border: 1px solid var(--bordure);
+      overflow: hidden;
+    }
+
+    .remplissage-barre {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .carte-label:nth-child(1) .nom-label { font-size: 20px; }
+    .carte-label:nth-child(1) .remplissage-barre { background: var(--accent); }
+    .carte-label:nth-child(2) .remplissage-barre { background: var(--accent2); }
+    .carte-label:nth-child(3) .remplissage-barre { background: var(--succès); }
+
+    .score-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--texte);
+      min-width: 46px;
+      text-align: right;
+    }
+
+    .carte-label:nth-child(1) .score-label { color: var(--accent); font-size: 16px; }
+
+    #section-erreur {
+      display: none;
+      margin-top: 14px;
+      background: #fff0f0;
+      border: 1.5px solid var(--erreur);
+      padding: 14px 18px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--erreur);
+      animation: glisserHaut 0.3s ease both;
+      line-height: 1.6;
+    }
+
+    @keyframes glisserBas {
+      from { opacity: 0; transform: translateY(-24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes glisserHaut {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes apparaitre {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes tourner {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes clignote {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    @media (max-width: 500px) {
+      .grille-modeles { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="conteneur">
+
+    <header>
+      <div class="etiquette">Propulsé par Hugging Face</div>
+      <h1>Reconnaissance<br/><em>d'Image IA</em></h1>
+      <p class="sous-titre">
+        Charge une image → choisis un modèle → obtiens les résultats<br/>
+        100% gratuit · aucune carte bancaire requise
+      </p>
+    </header>
+
+    <!-- Étape 1 : Token -->
+    <div class="section-token">
+      <label>🔑 Ton token Hugging Face</label>
+      <div class="champ-token">
+        <input type="password" id="champ-token" placeholder="hf_..." />
+        <button class="btn-afficher" onclick="basculerToken()" title="Afficher/Masquer">👁</button>
+      </div>
+      <p class="indice-token">
+        Obtenir un token gratuit →
+        <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a>
+        · Inscription gratuite · Aucune carte requise
+      </p>
+    </div>
+
+    <!-- Étape 2 : Choix du modèle -->
+    <div class="section-modele">
+      <label>🤖 Choisir un modèle de reconnaissance</label>
+      <div class="grille-modeles">
+
+        <label class="carte-modele actif" onclick="selectionnerModele(this)">
+          <input type="radio" name="modele" value="google/vit-base-patch16-224" checked/>
+          <div class="nom-modele">ViT Général</div>
+          <div class="desc-modele">Reconnaît +1000 objets du quotidien</div>
+        </label>
+
+        <label class="carte-modele" onclick="selectionnerModele(this)">
+          <input type="radio" name="modele" value="microsoft/resnet-50"/>
+          <div class="nom-modele">ResNet-50</div>
+          <div class="desc-modele">Rapide, efficace sur animaux & objets</div>
+        </label>
+
+        <label class="carte-modele" onclick="selectionnerModele(this)">
+          <input type="radio" name="modele" value="nateraw/vit-age-classifier"/>
+          <div class="nom-modele">Âge & Visage</div>
+          <div class="desc-modele">Estimation d'âge sur portraits</div>
+        </label>
+
+        <label class="carte-modele" onclick="selectionnerModele(this)">
+          <input type="radio" name="modele" value="lysandre/CLIP-flowers-and-plants"/>
+          <div class="nom-modele">Fleurs & Plantes</div>
+          <div class="desc-modele">Identifie espèces végétales</div>
+        </label>
+
+      </div>
+    </div>
+
+    <!-- Étape 3 : Zone de dépôt -->
+    <div class="zone-depot" id="zone-depot">
+      <input type="file" id="champ-fichier" accept="image/*" />
+      <span class="icone-depot">🖼️</span>
+      <div class="texte-depot">Glisse ton image ici</div>
+      <div class="sous-texte-depot">ou clique pour choisir un fichier — JPG · PNG · WEBP · GIF</div>
+    </div>
+
+    <!-- Aperçu -->
+    <div id="section-apercu">
+      <div class="cadre-apercu">
+        <img id="img-apercu" src="" alt="Aperçu de l'image" />
+        <div class="etiquette-apercu" id="nom-fichier">image.jpg</div>
+      </div>
+      <button id="btn-analyser" onclick="analyserImage()">
+        <span class="texte-btn">→ Lancer la reconnaissance</span>
+        <div class="roue"></div>
+      </button>
+    </div>
+
+    <!-- Erreur -->
+    <div id="section-erreur"></div>
+
+    <!-- Résultats -->
+    <div id="section-resultats">
+      <div class="entete-resultats">
+        <span class="titre-resultats">Résultats</span>
+        <span class="nb-resultats" id="nb-resultats"></span>
+      </div>
+      <div class="separateur"></div>
+      <div id="liste-labels"></div>
+    </div>
+
+  </div>
+
+  <script>
+    let imageBase64 = '';
+
+    // 👇 METTEZ ICI VOTRE LIEN RENDER une fois déployé
+    const URL_RENDER = 'https://sagitaimage.onrender.com/analyser';
+
+    const dico = {
+      "cat": "Chat", "dog": "Chien", "bird": "Oiseau", "fish": "Poisson",
+      "horse": "Cheval", "cow": "Vache", "elephant": "Éléphant", "lion": "Lion",
+      "tiger": "Tigre", "bear": "Ours", "rabbit": "Lapin", "snake": "Serpent",
+      "frog": "Grenouille", "butterfly": "Papillon", "bee": "Abeille",
+      "spider": "Araignée", "shark": "Requin", "whale": "Baleine", "duck": "Canard",
+      "eagle": "Aigle", "owl": "Hibou", "pig": "Cochon", "sheep": "Mouton",
+      "goat": "Chèvre", "chicken": "Poulet", "monkey": "Singe", "zebra": "Zèbre",
+      "giraffe": "Girafe", "penguin": "Pingouin", "wolf": "Loup", "fox": "Renard",
+      "deer": "Cerf", "mouse": "Souris", "hamster": "Hamster",
+      "pizza": "Pizza", "hamburger": "Hamburger", "apple": "Pomme", "banana": "Banane",
+      "orange": "Orange", "strawberry": "Fraise", "cake": "Gâteau", "bread": "Pain",
+      "coffee": "Café", "tea": "Thé", "sushi": "Sushi", "salad": "Salade",
+      "soup": "Soupe", "rice": "Riz", "pasta": "Pâtes", "cheese": "Fromage",
+      "chocolate": "Chocolat", "ice cream": "Glace", "sandwich": "Sandwich",
+      "fruit": "Fruit", "vegetable": "Légume", "food": "Nourriture",
+      "car": "Voiture", "truck": "Camion", "bicycle": "Vélo", "motorcycle": "Moto",
+      "airplane": "Avion", "train": "Train", "boat": "Bateau", "bus": "Bus",
+      "phone": "Téléphone", "computer": "Ordinateur", "laptop": "Ordinateur portable",
+      "camera": "Appareil photo", "chair": "Chaise", "table": "Table",
+      "book": "Livre", "clock": "Horloge", "lamp": "Lampe", "bag": "Sac",
+      "bottle": "Bouteille", "cup": "Tasse", "glasses": "Lunettes", "hat": "Chapeau",
+      "shoe": "Chaussure", "watch": "Montre", "keyboard": "Clavier",
+      "television": "Télévision", "umbrella": "Parapluie", "ball": "Ballon",
+      "flower": "Fleur", "tree": "Arbre", "grass": "Herbe", "mountain": "Montagne",
+      "beach": "Plage", "ocean": "Océan", "river": "Rivière", "forest": "Forêt",
+      "sky": "Ciel", "cloud": "Nuage", "sun": "Soleil", "moon": "Lune",
+      "star": "Étoile", "rain": "Pluie", "snow": "Neige", "desert": "Désert",
+      "lake": "Lac", "island": "Île", "waterfall": "Cascade", "garden": "Jardin",
+      "rose": "Rose", "leaf": "Feuille", "plant": "Plante", "soil": "Sol",
+      "house": "Maison", "building": "Bâtiment", "church": "Église",
+      "castle": "Château", "bridge": "Pont", "road": "Route", "city": "Ville",
+      "park": "Parc", "market": "Marché", "school": "École", "hospital": "Hôpital",
+      "airport": "Aéroport", "stadium": "Stade", "tower": "Tour",
+      "person": "Personne", "man": "Homme", "woman": "Femme", "child": "Enfant",
+      "baby": "Bébé", "face": "Visage", "smile": "Sourire", "hair": "Cheveux",
+      "hand": "Main", "portrait": "Portrait", "crowd": "Foule",
+      "animal": "Animal", "nature": "Nature", "water": "Eau", "light": "Lumière",
+      "color": "Couleur", "white": "Blanc", "black": "Noir", "red": "Rouge",
+      "blue": "Bleu", "green": "Vert", "yellow": "Jaune", "dark": "Sombre",
+      "outdoor": "Extérieur", "indoor": "Intérieur", "background": "Arrière-plan",
+      "pattern": "Motif", "texture": "Texture", "sport": "Sport", "art": "Art",
+      "music": "Musique", "dance": "Danse", "fashion": "Mode", "technology": "Technologie",
+      "furniture": "Meuble", "clothing": "Vêtement", "vehicle": "Véhicule",
+      "landscape": "Paysage", "architecture": "Architecture", "street": "Rue",
+      "night": "Nuit", "day": "Jour", "sunset": "Coucher de soleil",
+      "sunrise": "Lever de soleil", "fire": "Feu", "smoke": "Fumée",
+    };
+
+    function traduire(texte) {
+      const cle = texte.toLowerCase().trim();
+      if (dico[cle]) return dico[cle];
+      const mots = cle.split(' ');
+      const trad = mots.map(m => dico[m] || (m.charAt(0).toUpperCase() + m.slice(1)));
+      return trad.join(' ');
+    }
+
+    function basculerToken() {
+      const champ = document.getElementById('champ-token');
+      champ.type = champ.type === 'password' ? 'text' : 'password';
+    }
+
+    function selectionnerModele(carte) {
+      document.querySelectorAll('.carte-modele').forEach(c => c.classList.remove('actif'));
+      carte.classList.add('actif');
+    }
+
+    const zoneDepot = document.getElementById('zone-depot');
+    const champFichier = document.getElementById('champ-fichier');
+
+    zoneDepot.addEventListener('dragover', e => {
+      e.preventDefault();
+      zoneDepot.classList.add('survol');
+    });
+    zoneDepot.addEventListener('dragleave', () => zoneDepot.classList.remove('survol'));
+    zoneDepot.addEventListener('drop', e => {
+      e.preventDefault();
+      zoneDepot.classList.remove('survol');
+      const fichier = e.dataTransfer.files[0];
+      if (fichier) traiterFichier(fichier);
+    });
+
+    champFichier.addEventListener('change', e => {
+      if (e.target.files[0]) traiterFichier(e.target.files[0]);
+    });
+
+    function traiterFichier(fichier) {
+      if (!fichier.type.startsWith('image/')) {
+        afficherErreur("Ce fichier n'est pas une image valide.");
+        return;
+      }
+      document.getElementById('nom-fichier').textContent = fichier.name;
+      const lecteur = new FileReader();
+      lecteur.onload = (e) => {
+        const resultat = e.target.result;
+        imageBase64 = resultat.split(',')[1];
+        document.getElementById('img-apercu').src = resultat;
+        document.getElementById('section-apercu').style.display = 'block';
+        document.getElementById('section-resultats').style.display = 'none';
+        document.getElementById('section-erreur').style.display = 'none';
+        document.getElementById('liste-labels').innerHTML = '';
+      };
+      lecteur.readAsDataURL(fichier);
+    }
+
+    // ✅ FONCTION MODIFIÉE — appelle Render au lieu de Hugging Face directement
+    async function analyserImage() {
+      const token = document.getElementById('champ-token').value.trim();
+      const modele = document.querySelector('input[name="modele"]:checked').value;
+
+      if (!token) {
+        afficherErreur("⚠️ Entre ton token Hugging Face pour continuer.");
+        return;
+      }
+      if (!imageBase64) {
+        afficherErreur("⚠️ Charge une image d'abord.");
+        return;
+      }
+
+      const btn = document.getElementById('btn-analyser');
+      btn.classList.add('chargement');
+      btn.disabled = true;
+      document.getElementById('section-erreur').style.display = 'none';
+
+      try {
+        const reponse = await fetch(URL_RENDER, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: token,
+            modele: modele,
+            image: imageBase64
+          })
+        });
+
+        const donnees = await reponse.json();
+
+        if (!reponse.ok) {
+          const msg = donnees?.erreur || donnees?.error || 'Erreur API inconnue.';
+          if (msg.includes('loading') || msg.includes('currently loading')) {
+            throw new Error("⏳ Le modèle est en cours de chargement. Patiente 20 secondes et réessaie.");
+          }
+          throw new Error(msg);
+        }
+
+        if (!Array.isArray(donnees) || donnees.length === 0) {
+          afficherErreur("Aucun résultat trouvé pour cette image.");
+        } else {
+          afficherResultats(donnees);
+        }
+
+      } catch (err) {
+        afficherErreur(`❌ ${err.message}`);
+      } finally {
+        btn.classList.remove('chargement');
+        btn.disabled = false;
+      }
+    }
+
+    function afficherResultats(labels) {
+      const section = document.getElementById('section-resultats');
+      const liste = document.getElementById('liste-labels');
+      const nb = document.getElementById('nb-resultats');
+
+      liste.innerHTML = '';
+      nb.textContent = `${labels.length} éléments détectés`;
+
+      const top = labels.slice(0, 8);
+
+      top.forEach((label, i) => {
+        const score = Math.round((label.score || 0) * 100);
+        const nomFr = traduire(label.label || '');
+
+        const carte = document.createElement('div');
+        carte.className = 'carte-label';
+        carte.style.animationDelay = `${i * 0.06}s`;
+
+        carte.innerHTML = `
+          <div class="rang-label">${String(i + 1).padStart(2, '0')}</div>
+          <div class="info-label">
+            <div class="nom-label">${nomFr}</div>
+            <div class="piste-barre">
+              <div class="remplissage-barre" style="width:0%" data-largeur="${score}%"></div>
+            </div>
+          </div>
+          <div class="score-label">${score}%</div>
+        `;
+
+        liste.appendChild(carte);
+      });
+
+      section.style.display = 'block';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.remplissage-barre').forEach(barre => {
+            barre.style.width = barre.getAttribute('data-largeur');
+          });
+        });
+      });
+    }
+
+    function afficherErreur(msg) {
+      const el = document.getElementById('section-erreur');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
