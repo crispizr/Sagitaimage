@@ -27,8 +27,11 @@ def analyser():
 
         image_bytes = base64.b64decode(image_base64)
 
+        # Nouvelle URL API Hugging Face
+        url = f'https://router.huggingface.co/hf-inference/models/{modele}'
+
         reponse = requests.post(
-            f'https://api-inference.huggingface.co/models/{modele}',
+            url,
             headers={
                 'Authorization': f'Bearer {token}',
                 'Content-Type': 'application/octet-stream'
@@ -37,14 +40,15 @@ def analyser():
             timeout=60
         )
 
-        # Vérifier si la réponse est vide
         if not reponse.text or reponse.text.strip() == '':
-            return jsonify({'erreur': '⏳ Le modèle est en cours de chargement, réessayez dans 20 secondes.'}), 503
+            return jsonify({'erreur': '⏳ Modèle en chargement, réessayez dans 20 secondes.'}), 503
 
         try:
             return jsonify(reponse.json()), reponse.status_code
         except Exception:
-            return jsonify({'erreur': f'Réponse invalide de Hugging Face : {reponse.text[:200]}'}), 500
+            return jsonify({
+                'erreur': f'Code {reponse.status_code} — {reponse.text[:300]}'
+            }), 500
 
     except Exception as e:
         return jsonify({'erreur': str(e)}), 500
