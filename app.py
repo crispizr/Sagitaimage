@@ -6,6 +6,10 @@ import base64
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/')
+def accueil():
+    return jsonify({'status': 'ok', 'message': 'API Sagitaimage en ligne !'})
+
 @app.route('/analyser', methods=['POST'])
 def analyser():
     data = request.json
