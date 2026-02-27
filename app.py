@@ -12,26 +12,35 @@ def accueil():
 
 @app.route('/analyser', methods=['POST'])
 def analyser():
-    data = request.json
-    token = data.get('token')
-    modele = data.get('modele')
-    image_base64 = data.get('image')
+    try:
+        data = request.json
 
-    if not token or not modele or not image_base64:
-        return jsonify({'erreur': 'Paramètres manquants'}), 400
+        if not data:
+            return jsonify({'erreur': 'Aucune donnée reçue'}), 400
 
-    image_bytes = base64.b64decode(image_base64)
+        token = data.get('token')
+        modele = data.get('modele')
+        image_base64 = data.get('image')
 
-    reponse = requests.post(
-        f'https://api-inference.huggingface.co/models/{modele}',
-        headers={
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/octet-stream'
-        },
-        data=image_bytes
-    )
+        if not token or not modele or not image_base64:
+            return jsonify({'erreur': 'Paramètres manquants'}), 400
 
-    return jsonify(reponse.json()), reponse.status_code
+        image_bytes = base64.b64decode(image_base64)
+
+        reponse = requests.post(
+            f'https://api-inference.huggingface.co/models/{modele}',
+            headers={
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/octet-stream'
+            },
+            data=image_bytes,
+            timeout=30
+        )
+
+        return jsonify(reponse.json()), reponse.status_code
+
+    except Exception as e:
+        return jsonify({'erreur': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
