@@ -34,10 +34,17 @@ def analyser():
                 'Content-Type': 'application/octet-stream'
             },
             data=image_bytes,
-            timeout=30
+            timeout=60
         )
 
-        return jsonify(reponse.json()), reponse.status_code
+        # Vérifier si la réponse est vide
+        if not reponse.text or reponse.text.strip() == '':
+            return jsonify({'erreur': '⏳ Le modèle est en cours de chargement, réessayez dans 20 secondes.'}), 503
+
+        try:
+            return jsonify(reponse.json()), reponse.status_code
+        except Exception:
+            return jsonify({'erreur': f'Réponse invalide de Hugging Face : {reponse.text[:200]}'}), 500
 
     except Exception as e:
         return jsonify({'erreur': str(e)}), 500
