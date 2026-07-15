@@ -653,18 +653,35 @@ const dicoMaladies = {
 };
 
 function traduireMaladie(labelBrut) {
-// labelBrut ressemble à "Tomato___Late_blight" ou "Corn_(maize)___healthy"
+// L'API peut renvoyer 2 formats différents selon le provider :
+// - Format brut : "Tomato___Late_blight" ou "Corn_(maize)___healthy"
+// - Format nettoyé par HF : "Tomato with Late Blight" ou juste "Tomato Healthy"
+let nomPlanteBrut = '';
+let nomMaladieBrut = '';
+
+if (labelBrut.includes('___')) {
 const parties = labelBrut.split('___');
-const nomPlanteBrut = (parties[0] || '').replace(/_/g, ' ').trim();
-const nomMaladieBrut = (parties[1] || '').replace(/_/g, ' ').trim();
+nomPlanteBrut = (parties[0] || '').replace(/_/g, ' ').trim();
+nomMaladieBrut = (parties[1] || '').replace(/_/g, ' ').trim();
+} else if (/ with /i.test(labelBrut)) {
+const parties = labelBrut.split(/ with /i);
+nomPlanteBrut = (parties[0] || '').replace(/_/g, ' ').trim();
+nomMaladieBrut = (parties[1] || '').replace(/_/g, ' ').trim();
+} else if (/ healthy$/i.test(labelBrut)) {
+nomPlanteBrut = labelBrut.replace(/ healthy$/i, '').trim();
+nomMaladieBrut = 'healthy';
+} else {
+nomPlanteBrut = labelBrut;
+nomMaladieBrut = '';
+}
 
 const clePlante = nomPlanteBrut.toLowerCase();
 const cleMaladie = nomMaladieBrut.toLowerCase();
 
 const plante = dicoPlantes[clePlante] || (nomPlanteBrut.charAt(0).toUpperCase() + nomPlanteBrut.slice(1));
-const maladie = dicoMaladies[cleMaladie] || (nomMaladieBrut.charAt(0).toUpperCase() + nomMaladieBrut.slice(1));
+const maladie = dicoMaladies[cleMaladie] || (nomMaladieBrut ? (nomMaladieBrut.charAt(0).toUpperCase() + nomMaladieBrut.slice(1)) : 'Saine ✅');
 
-const estSaine = cleMaladie === 'healthy';
+const estSaine = cleMaladie === 'healthy' || cleMaladie === '';
 
 return { plante, maladie, estSaine };
 }
@@ -799,7 +816,7 @@ const badge = estSaine
 carte.innerHTML = `
 <div class="rang-label">${String(i + 1).padStart(2, '0')}</div>
 <div class="info-label">
-<div class="nom-label">${plante}${badge}</div>
+<div class="nom-label">${plante} ${badge}</div>
 <div class="sous-label">${maladie}</div>
 <div class="piste-barre">
 <div class="remplissage-barre" style="width:0%" data-largeur="${score}%"></div>
